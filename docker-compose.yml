@@ -1,34 +1,87 @@
-# Operación Despliegue — docker-compose.yml (ESQUELETO)
-#
-# Completa lo que falta (ver la guía del laboratorio, Fase 2).
-# Los nombres de servicio NO se pueden cambiar: frontend, catalog, orders, worker, db, cache.
-# Este archivo ya trae lo mínimo para que el stack exista; todavía NO es un despliegue correcto.
-
+# Operación Despliegue — docker-compose.yml
 services:
   frontend:
-    build: ./frontend
-    # TODO: publicar en el host el puerto ${FRONTEND_PORT} (definido en .env)
-    #       hacia el puerto interno en que escucha tu contenedor.
+    build:
+      context: ./frontend
+      provenance: false
+    ports:
+      - "${FRONTEND_PORT}:8080"
+    networks:
+      - frontend_net
+    depends_on:
+      catalog:
+        condition: service_healthy
+      orders:
+        condition: service_healthy
 
   catalog:
-    build: ./catalog
+    build:
+      context: ./catalog
+      provenance: false
     env_file: .env
+    networks:
+      - frontend_net
+      - backend_net
+    depends_on:
+      db:
+        condition: service_healthy
 
   orders:
-    build: ./orders
+    build:
+      context: ./orders
+      provenance: false
     env_file: .env
+    networks:
+      - frontend_net
+      - backend_net
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
 
   worker:
-    build: ./worker
+    build:
+      context: ./worker
+      provenance: false
     env_file: .env
+    networks:
+      - backend_net
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
 
   db:
     image: postgres:16-alpine
     env_file: .env
-    # TODO: ¿dónde viven los datos? ¿cómo se carga ./db/init.sql? ¿cómo sabe Docker que la base está lista?
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - backend_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   cache:
     image: redis:7-alpine
-    # TODO: ¿cómo sabe Docker que Redis está listo?
+    networks:
+      - backend_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
-# TODO: decide cómo se conectan los servicios entre sí y quién puede hablar con quién.
+networks:
+  frontend_net:
+  backend_net:
+
+volumes:
+  db_data:
