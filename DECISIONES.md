@@ -1,6 +1,6 @@
 # Registro de decisiones — equipo01
 
-Integrantes: _(nombres)_
+Integrantes: Johan Muñoz
 
 Completa **una fila por decisión**. Explica el porqué en una o dos frases: la defensa oral se basa en este documento.
 
